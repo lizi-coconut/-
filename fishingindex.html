@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>🎣 釣魚小遊戲</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    body {
+      font-family: 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #7DD3FC, #BAE6FD, #CFFAFE);
+    }
+
+    .game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 計時器 */
+    .timer {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      border: 2px solid #D97706;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      z-index: 50;
+      font-size: 16px;
+      font-weight: bold;
+      color: #92400E;
+      font-family: monospace;
+    }
+
+    /* 打烊按鈕 */
+    .close-button {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: rgba(239, 68, 68, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      border: 2px solid #991B1B;
+      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.4);
+      z-index: 50;
+      font-size: 14px;
+      font-weight: 900;
+      color: white;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .close-button:active {
+      transform: scale(0.95);
+    }
+
+    /* 船 */
+    .boat-container {
+      position: absolute;
+      top: 12%;
+      left: 50%;
+      transform: translateX(-50%) scale(0.8);
+      z-index: 30;
+    }
+
+    .boat {
+      width: 100px;
+      height: 60px;
+      background: linear-gradient(to bottom, #B45309, #92400E, #451A03);
+      border-radius: 0 0 50px 50px;
+      border: 3px solid #451A03;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      position: relative;
+    }
+
+    .boat-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background: #D97706;
+      border-radius: 6px 6px 0 0;
+    }
+
+    .fisher {
+      position: absolute;
+      top: -45px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 40px;
+    }
+
+    .fishing-rod {
+      position: absolute;
+      top: -30px;
+      right: 8px;
+      width: 2px;
+      height: 60px;
+      background: #451A03;
+      transform-origin: bottom;
+      transform: rotate(45deg);
+      border-radius: 10px;
+    }
+
+    .fishing-line {
+      position: absolute;
+      top: 50px;
+      right: 4px;
+      width: 2px;
+      background: #374151;
+      transition: height 0.1s linear;
+      display: none;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    }
+
+    .fishing-line.active {
+      display: block;
+    }
+
+    .hook {
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 10px;
+      background: linear-gradient(135deg, #EF4444, #DC2626);
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      animation: pulse 1s infinite;
+    }
+
+    /* 水面線 */
+    .water-line {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(to right, #155E75, #06B6D4, #155E75);
+      z-index: 20;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .water-line::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.3);
+      animation: pulse 2s infinite;
+    }
+
+    /* 水域 */
+    .water-zones {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+    }
+
+    .water-zone {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .left-zone {
+      background: linear-gradient(to bottom, rgba(34, 211, 238, 0.6), rgba(37, 99, 235, 0.7));
+      border-right: 2px solid #155E75;
+    }
+
+    .right-zone {
+      background: linear-gradient(to bottom, rgba(6, 182, 212, 0.6), rgba(29, 78, 216, 0.7));
+    }
+
+    .zone-label {
+      position: absolute;
+      top: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 10;
+    }
+
+    .left-zone .zone-label {
+      left: 8px;
+      color: #155E75;
+      border: 2px solid #155E75;
+    }
+
+    .right-zone .zone-label {
+      right: 8px;
+      color: #1E40AF;
+      border: 2px solid #1E40AF;
+    }
+
+    .fish-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 40px 10px 10px;
+    }
+
+    .right-zone .fish-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .fish {
+      font-size: 32px;
+      cursor: pointer;
+      transition: transform 0.3s;
+      animation: swim 4s ease-in-out infinite;
+    }
+
+    .fish:active {
+      transform: scale(1.2);
+    }
+
+    /* 釣魚按鈕 */
+    .fishing-button {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 40;
+      padding: 12px 32px;
+      font-size: 18px;
+      font-weight: 900;
+      border: 3px solid white;
+      border-radius: 18px;
+      background: linear-gradient(to right, #F97316, #EC4899, #F43F5E);
+      color: white;
+      box-shadow: 0 8px 25px rgba(236, 72, 153, 0.6);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .fishing-button:active {
+      transform: translateX(-50%) scale(0.95);
+    }
+
+    .fishing-button:disabled {
+      background: #9CA3AF;
+      border-color: #6B7280;
+      color: #4B5563;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      animation: fadeIn 0.3s;
+      padding: 15px;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 18px;
+      padding: 25px;
+      max-width: 350px;
+      width: 100%;
+      text-align: center;
+      animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 15px 50px rgba(0,0,0,0.5);
+    }
+
+    .modal-fish {
+      font-size: 80px;
+      margin: 15px 0;
+      animation: bounce 0.6s infinite;
+    }
+
+    .modal-title {
+      font-size: 24px;
+      font-weight: 900;
+      color: #1F2937;
+      margin: 12px 0;
+    }
+
+    .modal-info {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 15px 0;
+      align-items: center;
+    }
+
+    .modal-tag {
+      background: #F3F4F6;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 2px solid #D1D5DB;
+      font-size: 11px;
+      font-weight: bold;
+      color: #6B7280;
+    }
+
+    .color-badge {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+    }
+
+    .confirm-button {
+      width: 100%;
+      padding: 13px;
+      font-size: 16px;
+      font-weight: 900;
+      background: linear-gradient(to right, #10B981, #059669);
+      color: white;
+      border: 3px solid white;
+      border-radius: 13px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+      transition: transform 0.2s;
+    }
+
+    .confirm-button:active {
+      transform: scale(0.95);
+    }
+
+    .rarity-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 50px;
+      font-size: 13px;
+      font-weight: bold;
+      color: white;
+      margin-bottom: 12px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+    }
+
+    /* 統計畫面 */
+    .stats-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+      animation: fadeIn 0.3s;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .stats-screen.show {
+      display: flex;
+    }
+
+    .stats-content {
+      background: linear-gradient(135deg, #FBBF24, #F59E0B);
+      border-radius: 20px;
+      padding: 25px;
+      max-width: 450px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .stats-header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 3px solid rgba(255,255,255,0.3);
+    }
+
+    .stats-title {
+      font-size: 28px;
+      font-weight: 900;
+      color: white;
+      margin: 10px 0;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .stats-time {
+      font-size: 32px;
+      font-weight: 900;
+      color: white;
+      margin: 10px 0;
+      font-family: monospace;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .stats-total {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 12px;
+      border-radius: 12px;
+      margin: 15px 0;
+      text-align: center;
+    }
+
+    .stats-total-number {
+      font-size: 36px;
+      font-weight: 900;
+      color: #D97706;
+      margin: 5px 0;
+    }
+
+    .stats-list {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      padding: 15px;
+      margin: 15px 0;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .stats-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      margin: 6px 0;
+      background: #F3F4F6;
+      border-radius: 10px;
+      border: 2px solid #E5E7EB;
+    }
+
+    .stats-item-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .stats-fish-emoji {
+      font-size: 28px;
+    }
+
+    .stats-fish-name {
+      font-size: 14px;
+      font-weight: bold;
+      color: #1F2937;
+    }
+
+    .stats-fish-count {
+      font-size: 20px;
+      font-weight: 900;
+      color: #D97706;
+      background: white;
+      padding: 4px 12px;
+      border-radius: 50px;
+      border: 2px solid #D97706;
+    }
+
+    .restart-button {
+      width: 100%;
+      padding: 15px;
+      font-size: 18px;
+      font-weight: 900;
+      background: linear-gradient(to right, #10B981, #059669);
+      color: white;
+      border: 3px solid white;
+      border-radius: 15px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+      transition: transform 0.2s;
+      margin-top: 15px;
+    }
+
+    .restart-button:active {
+      transform: scale(0.95);
+    }
+
+    /* 雲朵 */
+    .cloud {
+      position: absolute;
+      font-size: 35px;
+      opacity: 0.6;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .cloud1 { top: 20px; left: 20px; }
+    .cloud2 { top: 30px; right: 30px; animation-delay: 1.2s; font-size: 30px; }
+
+    /* 動畫 */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes scaleIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+
+    @keyframes swim {
+      0% { transform: translate(0, 0); }
+      25% { transform: translate(6px, -3px); }
+      50% { transform: translate(0, -6px); }
+      75% { transform: translate(-6px, -3px); }
+      100% { transform: translate(0, 0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 遊戲容器 -->
+  <div class="game-container">
+    <!-- 計時器 -->
+    <div class="timer" id="timer">⏱️ 00:00</div>
+    
+    <!-- 打烊回家按鈕 -->
+    <button class="close-button" id="closeBtn">🏠 打烊回家</button>
+
+    <!-- 雲朵 -->
+    <div class="cloud cloud1">☁️</div>
+    <div class="cloud cloud2">☁️</div>
+
+    <!-- 船 -->
+    <div class="boat-container">
+      <div class="fisher">🧑‍🌾</div>
+      <div class="boat">
+        <div class="boat-top"></div>
+      </div>
+      <div class="fishing-rod"></div>
+      <div class="fishing-line" id="fishingLine">
+        <div class="hook"></div>
+      </div>
+    </div>
+
+    <!-- 水面線 -->
+    <div class="water-line"></div>
+
+    <!-- 水域 -->
+    <div class="water-zones">
+      <!-- 左側（已釣） -->
+      <div class="water-zone left-zone">
+        <div class="zone-label">已釣 <span id="leftCount">0</span></div>
+        <div class="fish-container" id="leftFish"></div>
+      </div>
+
+      <!-- 右側（魚群） -->
+      <div class="water-zone right-zone">
+        <div class="zone-label">魚群 <span id="rightCount">8</span></div>
+        <div class="fish-container" id="rightFish"></div>
+      </div>
+    </div>
+
+    <!-- 釣魚按鈕 -->
+    <button class="fishing-button" id="fishingBtn">🎣 開始釣魚</button>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="rarity-badge" id="rarityBadge">⭐ 稀有 ⭐</div>
+      <div class="modal-fish" id="modalFish">🐟</div>
+      <h2 class="modal-title" id="modalTitle">黃金鯛魚</h2>
+      <div class="modal-info">
+        <div class="modal-tag" id="modalSize">中型 🐠</div>
+        <div class="color-badge" id="modalColor"></div>
+      </div>
+      <button class="confirm-button" id="confirmBtn">✅ 收入魚簍</button>
+    </div>
+  </div>
+
+  <!-- 統計畫面 -->
+  <div class="stats-screen" id="statsScreen">
+    <div class="stats-content">
+      <div class="stats-header">
+        <div style="font-size: 50px; margin-bottom: 10px;">🎣</div>
+        <h2 class="stats-title">今日收穫</h2>
+        <div class="stats-time" id="statsTime">00:00</div>
+      </div>
+
+      <div class="stats-total">
+        <div style="font-size: 14px; color: #6B7280; font-weight: bold; margin-bottom: 5px;">總共釣到</div>
+        <div class="stats-total-number" id="statsTotal">0</div>
+        <div style="font-size: 14px; color: #6B7280; font-weight: bold;">條魚</div>
+      </div>
+
+      <div class="stats-list" id="statsList">
+        <!-- 動態生成 -->
+      </div>
+
+      <button class="restart-button" id="restartBtn">🔄 重新開始</button>
+    </div>
+  </div>
+
+  <script>
+    // 魚類資料庫（所有可能出現的魚）
+    const FISH_POOL = [
+      { name: '黃金鯛魚', emoji: '🐟', color: '#FFD700', size: 'md', rarity: '常見' },
+      { name: '藍鰭金槍魚', emoji: '🐠', color: '#1E90FF', size: 'lg', rarity: '稀有' },
+      { name: '小丑魚', emoji: '🐡', color: '#FF6347', size: 'sm', rarity: '常見' },
+      { name: '熱帶虹魚', emoji: '🦈', color: '#9370DB', size: 'lg', rarity: '史詩' },
+      { name: '銀色沙丁魚', emoji: '🐟', color: '#C0C0C0', size: 'sm', rarity: '普通' },
+      { name: '深海鮟鱇魚', emoji: '🐡', color: '#8B4513', size: 'md', rarity: '稀有' },
+      { name: '七彩神仙魚', emoji: '🐠', color: '#FF1493', size: 'md', rarity: '稀有' },
+      { name: '電鰻', emoji: '🦈', color: '#FFD700', size: 'lg', rarity: '傳說' },
+      { name: '比目魚', emoji: '🐟', color: '#8B7355', size: 'md', rarity: '常見' },
+      { name: '劍魚', emoji: '🐠', color: '#4682B4', size: 'lg', rarity: '稀有' },
+      { name: '河豚', emoji: '🐡', color: '#FFE4B5', size: 'sm', rarity: '普通' },
+      { name: '魔鬼魚', emoji: '🦈', color: '#2F4F4F', size: 'lg', rarity: '史詩' },
+      { name: '飛魚', emoji: '🐟', color: '#87CEEB', size: 'sm', rarity: '常見' },
+      { name: '海馬', emoji: '🐠', color: '#FFA07A', size: 'sm', rarity: '稀有' },
+      { name: '章魚', emoji: '🐙', color: '#8B008B', size: 'md', rarity: '史詩' },
+      { name: '鯊魚', emoji: '🦈', color: '#708090', size: 'lg', rarity: '傳說' },
+    ];
+
+    // 遊戲狀態
+    let timer = 0;
+    let timerInterval = null;
+    let nextFishId = 1;
+    let rightFish = [];
+    let leftFish = [];
+    let isFishing = false;
+    let caughtFish = null;
+
+    // DOM 元素
+    const timerEl = document.getElementById('timer');
+    const fishingBtn = document.getElementById('fishingBtn');
+    const closeBtn = document.getElementById('closeBtn');
+    const fishingLine = document.getElementById('fishingLine');
+    const rightFishEl = document.getElementById('rightFish');
+    const leftFishEl = document.getElementById('leftFish');
+    const leftCountEl = document.getElementById('leftCount');
+    const rightCountEl = document.getElementById('rightCount');
+    const modal = document.getElementById('modal');
+    const modalFish = document.getElementById('modalFish');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalSize = document.getElementById('modalSize');
+    const modalColor = document.getElementById('modalColor');
+    const rarityBadge = document.getElementById('rarityBadge');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const statsScreen = document.getElementById('statsScreen');
+    const statsTime = document.getElementById('statsTime');
+    const statsTotal = document.getElementById('statsTotal');
+    const statsList = document.getElementById('statsList');
+    const restartBtn = document.getElementById('restartBtn');
+
+    // 生成隨機魚
+    function generateRandomFish() {
+      const randomTemplate = FISH_POOL[Math.floor(Math.random() * FISH_POOL.length)];
+      return {
+        id: nextFishId++,
+        ...randomTemplate
+      };
+    }
+
+    // 初始化右側魚群
+    function initRightFish() {
+      rightFish = [];
+      for (let i = 0; i < 8; i++) {
+        rightFish.push(generateRandomFish());
+      }
+    }
+
+    // 初始化
+    function init() {
+      initRightFish();
+      startTimer();
+      renderRightFish();
+      fishingBtn.addEventListener('click', handleFishing);
+      confirmBtn.addEventListener('click', handleConfirm);
+      closeBtn.addEventListener('click', showStats);
+      restartBtn.addEventListener('click', restartGame);
+    }
+
+    // 計時器
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        timer++;
+        updateTimer();
+      }, 1000);
+    }
+
+    function updateTimer() {
+      const mins = Math.floor(timer / 60);
+      const secs = timer % 60;
+      timerEl.textContent = `⏱️ ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    // 渲染魚
+    function renderRightFish() {
+      rightFishEl.innerHTML = '';
+      rightFish.forEach((fish, idx) => {
+        const fishDiv = document.createElement('div');
+        fishDiv.className = 'fish';
+        fishDiv.textContent = fish.emoji;
+        fishDiv.style.animationDelay = `${idx * 0.3}s`;
+        fishDiv.style.animationDuration = `${3 + (idx % 3)}s`;
+        fishDiv.title = fish.name;
+        rightFishEl.appendChild(fishDiv);
+      });
+      rightCountEl.textContent = rightFish.length;
+    }
+
+    function renderLeftFish() {
+      leftFishEl.innerHTML = '';
+      leftFish.forEach((fish, idx) => {
+        const fishDiv = document.createElement('div');
+        fishDiv.className = 'fish';
+        fishDiv.textContent = fish.emoji;
+        fishDiv.style.animationDelay = `${idx * 0.1}s`;
+        fishDiv.style.animation = 'bounce 1s infinite';
+        fishDiv.title = fish.name;
+        leftFishEl.appendChild(fishDiv);
+      });
+      leftCountEl.textContent = leftFish.length;
+    }
+
+    // 釣魚
+    async function handleFishing() {
+      if (isFishing || rightFish.length === 0) return;
+
+      isFishing = true;
+      fishingBtn.disabled = true;
+      fishingBtn.textContent = '🎣 釣魚中...';
+
+      fishingLine.classList.add('active');
+
+      const lineLength = Math.min(window.innerHeight * 0.2, 120);
+      for (let i = 0; i <= lineLength; i += 8) {
+        fishingLine.style.height = `${i}px`;
+        await sleep(12);
+      }
+
+      await sleep(400);
+
+      const randomIndex = Math.floor(Math.random() * rightFish.length);
+      caughtFish = rightFish[randomIndex];
+
+      for (let i = lineLength; i >= 0; i -= 8) {
+        fishingLine.style.height = `${i}px`;
+        await sleep(12);
+      }
+
+      fishingLine.classList.remove('active');
+      isFishing = false;
+
+      showModal();
+    }
+
+    // 顯示 Modal
+    function showModal() {
+      modalFish.textContent = caughtFish.emoji;
+      modalTitle.textContent = caughtFish.name;
+      modalColor.style.backgroundColor = caughtFish.color;
+      
+      const sizeText = caughtFish.size === 'sm' ? '小型 🐟' : 
+                       caughtFish.size === 'md' ? '中型 🐠' : '大型 🦈';
+      modalSize.textContent = sizeText;
+
+      rarityBadge.textContent = `⭐ ${caughtFish.rarity} ⭐`;
+      rarityBadge.style.background = getRarityColor(caughtFish.rarity);
+
+      modal.classList.add('show');
+    }
+
+    // 確認收魚
+    function handleConfirm() {
+      rightFish = rightFish.filter(f => f.id !== caughtFish.id);
+      leftFish.push(caughtFish);
+      
+      // 補充新魚
+      const newFish = generateRandomFish();
+      rightFish.push(newFish);
+
+      renderRightFish();
+      renderLeftFish();
+
+      modal.classList.remove('show');
+      caughtFish = null;
+
+      fishingBtn.disabled = false;
+      fishingBtn.textContent = '🎣 開始釣魚';
+    }
+
+    // 顯示統計
+    function showStats() {
+      if (leftFish.length === 0) {
+        alert('還沒釣到任何魚喔！');
+        return;
+      }
+
+      clearInterval(timerInterval);
+      
+      // 設定時間
+      const mins = Math.floor(timer / 60);
+      const secs = timer % 60;
+      statsTime.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      
+      // 設定總數
+      statsTotal.textContent = leftFish.length;
+      
+      // 統計每種魚的數量
+      const fishCount = {};
+      leftFish.forEach(fish => {
+        const key = fish.name;
+        if (!fishCount[key]) {
+          fishCount[key] = {
+            count: 0,
+            emoji: fish.emoji,
+            name: fish.name
+          };
+        }
+        fishCount[key].count++;
+      });
+      
+      // 生成列表
+      statsList.innerHTML = '';
+      Object.values(fishCount).sort((a, b) => b.count - a.count).forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'stats-item';
+        itemDiv.innerHTML = `
+          <div class="stats-item-left">
+            <div class="stats-fish-emoji">${item.emoji}</div>
+            <div class="stats-fish-name">${item.name}</div>
+          </div>
+          <div class="stats-fish-count">×${item.count}</div>
+        `;
+        statsList.appendChild(itemDiv);
+      });
+      
+      statsScreen.classList.add('show');
+    }
+
+    // 重新開始
+    function restartGame() {
+      timer = 0;
+      leftFish = [];
+      initRightFish();
+      renderRightFish();
+      renderLeftFish();
+      updateTimer();
+      startTimer();
+      statsScreen.classList.remove('show');
+    }
+
+    // 稀有度顏色
+    function getRarityColor(rarity) {
+      switch(rarity) {
+        case '傳說': return 'linear-gradient(to right, #FBBF24, #CA8A04)';
+        case '史詩': return 'linear-gradient(to right, #C084FC, #DB2777)';
+        case '稀有': return 'linear-gradient(to right, #60A5FA, #0891B2)';
+        case '普通': return 'linear-gradient(to right, #9CA3AF, #4B5563)';
+        default: return 'linear-gradient(to right, #4ADE80, #059669)';
+      }
+    }
+
+    // 輔助函數
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // 啟動遊戲
+    init();
+  </script>
+</body>
+</html>
